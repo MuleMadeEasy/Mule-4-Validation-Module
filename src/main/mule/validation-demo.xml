@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:validation="http://www.mulesoft.org/schema/mule/validation"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="565770e3-080f-470a-ade7-8e4b2dc98c2e" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<flow name="main" doc:id="55b58397-3325-42af-a0a1-e2812e26be09" >
+		<http:listener doc:name="Listener" doc:id="6e1110a2-31ae-47b9-b0bd-1558267871a7" config-ref="HTTP_Listener_config" path="/trigger">
+			<http:response >
+				<http:headers ><![CDATA[#[output application/java
+---
+{
+	"Key" : "Value"
+}]]]></http:headers>
+			</http:response>
+			<http:error-response statusCode="#[output application/java --- vars.httpStatus default 500]">
+				<http:body ><![CDATA[#[output application/json --- {errorType: error.errorType, error: error.description}]]]></http:body>
+			</http:error-response>
+		</http:listener>
+		<flow-ref doc:name="getDatabaseRecords" doc:id="24effbc9-e0b6-44e9-8389-bb21f875f974" name="getDatabaseRecords"/>
+		<try doc:name="Try" doc:id="9f1e7ac2-79a1-4d3f-94a3-c64085b2098c" >
+			<validation:is-not-empty-collection doc:name="Is not empty collection" doc:id="c2adefab-d3a6-4a62-b329-f3be6410d252" message="Did not receive any records from the data source">
+			<error-mapping sourceType="VALIDATION:EMPTY_COLLECTION" targetType="APP:NO_RECORDS_FOUND" />
+		</validation:is-not-empty-collection>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="3501a74d-b2ea-47df-9911-3880c65dcc97" type="APP:NO_RECORDS_FOUND">
+					<set-variable value="404" doc:name="httpStatuses" doc:id="218b433e-ce91-4b52-9e4d-2fb6adeb8365" variableName="httpStatuses"/>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<logger level="INFO" doc:name="Passed" doc:id="c27c4afa-045f-4e78-a4a5-321ef70eba2e" message="Validations passed!"/>
+	</flow>
+	<sub-flow name="getDatabaseRecords" doc:id="0f9485f7-ea23-47da-abe2-61b9e7648c96" >
+		<ee:transform doc:name="Set Database results" doc:id="6c8b1e9a-0608-41c3-914a-73a724d67e37" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+[]]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+</mule>
